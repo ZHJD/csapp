@@ -1,0 +1,14 @@
+Team Name:ateam
+Member 1 :Harry Bovik:bovik@cs.cmu.edu
+Measuring performance with gettimeofday().
+
+Testing mm malloc
+Reading tracefile: short1-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+
+Results for mm malloc:
+trace  valid  util     ops      secs  Kops
+ 0       yes   66%      12  0.000000 24000
+Total          66%      12  0.000000 24000
+
+Perf index = 40 (util) + 40 (thru) = 80/100
