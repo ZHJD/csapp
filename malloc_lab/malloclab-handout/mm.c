@@ -75,6 +75,8 @@ static size_t cur_heap_size;
 /* 空闲链表头指针 */
 static void *heap_listp;
 
+static void *heap_tail;
+
 
 static void init_mem_info()
 {
@@ -114,6 +116,65 @@ static inline size_t pack(size_t size, size_t alloc)
     return size | alloc;
 }
 
+static void *merge_free_blocks(void *bp)
+{
+    void *cur_bp = bp;
+    void *prev_bp = PREV_BLKP(cur_bp);
+    void *next_bp = NEXT_BLKP(cur_bp);
+
+    void *prev_header = HEADP(prev_bp);
+    void *next_header = footp(next_bp);
+
+    /* 头指针和尾指针用作哨兵，防止越界出错 */
+    if(prev_header < heap_listp)
+    {
+        prev_header = heap_listp - 2 * SIZE_T_SIZE;
+    }
+    if(next_header >= heap_hi)
+    {
+        next_header = heap_tail;
+    }
+
+    size_t cur_size;
+    size_t prev_size;
+    size_t next_size;
+    size_t total_size;
+
+    /* 前后都已经分配，无需合并 */
+    if(GET_ALLOC(prev_header) && GET_ALLOC(next_header))
+    {
+        return cur_bp;
+    }
+    else if(!GET_ALLOC(prev_header) && GET_ALLOC(next_header))
+    {
+        cur_size = GET_SIZE(HEADP(cur_bp));
+        prev_size = GET_SIZE(prev_header);
+        total_size = cur_size + prev_size;
+        put(prev_header, pack(total_size, 0x0));
+        put(footp(cur_bp), pack(total_size, 0x0));
+        return prev_bp;
+    }
+    else if(GET_ALLOC(prev_header) && !GET_ALLOC(next_header))
+    {
+        cur_size = GET_SIZE(HEADP(cur_bp));
+        next_size = GET_SIZE(next_header);
+        total_size = cur_size + next_size;
+        put(HEADP(cur_bp), pack(total_size, 0x0));
+        put(footp(next_bp), pack(total_size, 0x0));
+        return cur_bp;
+    }
+    else
+    {
+        cur_size = GET_SIZE(HEADP(cur_bp));
+        prev_size = GET_SIZE(prev_header);
+        next_size = GET_SIZE(next_header);
+        total_size = cur_size + prev_size + next_size;
+        put(HEADP(cur_bp), pack(total_size, 0x0));
+        put(footp(next_bp), pack(total_size, 0x0));
+        return prev_bp;
+    }
+}
+
 
 static void *extend_heap(size_t size)
 {
@@ -123,6 +184,10 @@ static void *extend_heap(size_t size)
     {
         return NULL;
     }
+
+    /* 更新堆的最大地址 */
+    heap_hi = mem_heap_hi();
+
     /* 前一个块的尾部替换掉 */
     put(HEADP(bp), pack(asize, 0));
     put(footp(bp), pack(asize, 0));
@@ -131,8 +196,11 @@ static void *extend_heap(size_t size)
     /* 形成新的尾部 */
     put(HEADP(NEXT_BLKP(bp)), pack(0, 1));
 
+    /* 每次扩展后设置尾指针 */
+    heap_tail = HEADP(NEXT_BLKP(bp));
+
     printf("next_blkp: 0x%x\n", HEADP(NEXT_BLKP(bp)));
-    return bp;
+    return merge_free_blocks(bp);
 }
 
 /* 
@@ -198,6 +266,7 @@ static void *first_fit(size_t size)
 static void place(void *bp, size_t size)
 {
     size_t left_size = GET_SIZE((HEADP(bp))) - size;
+    /* 忘记考虑这个导致first_fit出现死循环，因为left_size是0 */
     if(left_size == 0)
     {
         put(HEADP(bp), pack(size, 1));
@@ -280,6 +349,7 @@ void mm_free(void *ptr)
     }
     set_free(HEADP(ptr));
     set_free(footp(ptr));
+    merge_free_blocks(ptr);
 }
 
 /*
