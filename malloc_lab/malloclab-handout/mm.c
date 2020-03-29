@@ -54,8 +54,8 @@ team_t team = {
 
 #define GET_VALUE(p) ((*(size_t*)p))
 
-#define NEXT_BLKP(bp) ((char*)bp + GET_SIZE(HEADP(bp)))
-#define PREV_BLKP(bp) ((char*)bp - GET_SIZE((char*)bp - 2 * SIZE_T_SIZE))
+#define NEXT_BLKP(bp) ((char*)(bp) + GET_SIZE(HEADP(bp)))
+#define PREV_BLKP(bp) ((char*)(bp) - GET_SIZE(((char*)(bp) - 2 * SIZE_T_SIZE)))
 #define POINT_ADD_BYTE(p, byte) (((char*)p) + byte)
 
 #define WORD  4
@@ -117,26 +117,19 @@ static inline size_t pack(size_t size, size_t alloc)
     return size | alloc;
 }
 
+
 static void *merge_free_blocks(void *bp)
 {
     void *cur_bp = bp;
     void *prev_bp = PREV_BLKP(cur_bp);
     void *next_bp = NEXT_BLKP(cur_bp);
 
+printf("cur_bp:0x%x, prev_bp size: %d\n", cur_bp, GET_SIZE(((char*)cur_bp - 2 * SIZE_T_SIZE)));
+
     void *prev_header = HEADP(prev_bp);
     void *next_header = HEADP(next_bp);
 
-    /* 头指针和尾指针用作哨兵，防止越界出错 */
-    if(POINTER_LESS(prev_header, heap_listp))
-    {
-        prev_header = (char*)heap_listp - 2 * SIZE_T_SIZE;
-    }
-    if(POINTER_LESS(heap_hi, next_header))
-    {
-        next_header = heap_tail;
-    }
-
-    printf("prev_header 0x%x, prev_size :\n", prev_header, GET_SIZE(prev_header));
+    printf("headp : 0x%xprev_header 0x%x, prev_size :\n", heap_listp, prev_header, GET_SIZE(prev_header));
 
     size_t cur_size;
     size_t prev_size;
@@ -223,24 +216,27 @@ int mm_init(void)
     /* 头部 */
     put(POINT_ADD_BYTE(heap_listp, 1 * SIZE_T_SIZE), pack(2 * SIZE_T_SIZE, 1));
     /* 脚部 */
-    put(POINT_ADD_BYTE(heap_listp, 1 * SIZE_T_SIZE), pack(2 * SIZE_T_SIZE, 1));
+    put(POINT_ADD_BYTE(heap_listp, 2 * SIZE_T_SIZE), pack(2 * SIZE_T_SIZE, 1));
     /* 尾部 */
     put(POINT_ADD_BYTE(heap_listp, 3 * SIZE_T_SIZE), pack(0, 1));
+
+    /* 跳过第一个空快 */
+    heap_listp = POINT_ADD_BYTE(heap_listp, 3 * SIZE_T_SIZE);
 
     if(extend_heap(page_size) == NULL)
     {
         return -1;
     }
 
-    /* 跳过第一个空快 */
-    heap_listp = POINT_ADD_BYTE(heap_listp, 3 * SIZE_T_SIZE);
 
-    printf("\tinit info\n");
-    printf("page size %d\n", page_size);
-    printf("heap size %d\n", cur_heap_size);
-    printf("heap lo: 0x%x\n", heap_lo);
-    printf("head hi: 0x%x\n", heap_hi);
-    printf("heap_hi - heap_lo %d\n", (char*)heap_hi - (char*)heap_lo);
+
+//    printf("\tinit info\n");
+//   printf("page size %d\n", page_size);
+//    printf("heap size %d\n", cur_heap_size);
+//    printf("heap lo: 0x%x\n", heap_lo);
+//    printf("head hi: 0x%x\n", heap_hi);
+//    printf("heap_hi - heap_lo %d\n", (char*)heap_hi - (char*)heap_lo);
+
     printf("head list p: 0x%x\n", heap_listp);
     return 0;
 }
@@ -259,6 +255,7 @@ static void *first_fit(size_t size)
             return POINT_ADD_BYTE(tmp_p, SIZE_T_SIZE); 
         }
         tmp_p = POINT_ADD_BYTE(tmp_p, GET_SIZE(tmp_p));
+        
         printf("tmp_p :0x%x size: %d is_alloc: %d\n", tmp_p, GET_SIZE(tmp_p), GET_ALLOC(tmp_p));
         i++;
     }
@@ -309,16 +306,15 @@ void *mm_malloc(size_t size)
     if((bp = first_fit(asize)) != NULL)
     {
         place(bp, asize);
-        printf("call %dth alloc 0x%x foot addr: 0x%x approve size %d\n", i, bp, footp(bp), asize);
         return bp;
     }
     
     size_t extendsize = asize > page_size ? asize : page_size;
-    printf("extendsize: %d\n", extendsize);
     if((bp = extend_heap(extendsize)) == NULL)
     {
         return NULL;
     }
+    printf("new bp 0x%x, extendsize: %d alloc size %d\n", bp, extendsize, GET_SIZE(HEADP(bp)));
     place(bp, asize);
     return bp;
 }
@@ -333,7 +329,6 @@ void *mm_malloc1(size_t size)
     static int i = -1;
     int newsize = ALIGN(size + SIZE_T_SIZE);
     void *p = mem_sbrk(newsize);
-    printf("call %dth alloc 0x%x apply size %d approve size %d\n", i, p, size, newsize);
     if (p == (void *)-1)
     return NULL;
     else {
@@ -353,7 +348,7 @@ void mm_free(void *ptr)
     }
     set_free(HEADP(ptr));
     set_free(footp(ptr));
-    //merge_free_blocks(ptr);
+    merge_free_blocks(ptr);
 }
 
 /*
