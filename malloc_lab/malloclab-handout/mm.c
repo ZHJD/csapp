@@ -56,7 +56,7 @@ team_t team = {
 
 #define NEXT_BLKP(bp) ((char*)(bp) + GET_SIZE(HEADP(bp)))
 #define PREV_BLKP(bp) ((char*)(bp) - GET_SIZE(((char*)(bp) - 2 * SIZE_T_SIZE)))
-#define POINT_ADD_BYTE(p, byte) (((char*)p) + byte)
+#define POINTER_ADD_BYTE(p, byte) (((char*)p) + byte)
 
 
 static size_t page_size;
@@ -188,14 +188,14 @@ int mm_init(void)
     //put(heap_listp, 0);
 
     /* 头部 */
-    put(POINT_ADD_BYTE(heap_listp, 0 * SIZE_T_SIZE), pack(2 * SIZE_T_SIZE, 1));
+    put(POINTER_ADD_BYTE(heap_listp, 0 * SIZE_T_SIZE), pack(2 * SIZE_T_SIZE, 1));
     /* 脚部 */
-    put(POINT_ADD_BYTE(heap_listp, 1 * SIZE_T_SIZE), pack(2 * SIZE_T_SIZE, 1));
+    put(POINTER_ADD_BYTE(heap_listp, 1 * SIZE_T_SIZE), pack(2 * SIZE_T_SIZE, 1));
     /* 尾部 */
-    put(POINT_ADD_BYTE(heap_listp, 2 * SIZE_T_SIZE), pack(0, 1));
+    put(POINTER_ADD_BYTE(heap_listp, 2 * SIZE_T_SIZE), pack(0, 1));
 
     /* 跳过第一个空快 */
-    heap_listp = POINT_ADD_BYTE(heap_listp, 2 * SIZE_T_SIZE);
+    heap_listp = POINTER_ADD_BYTE(heap_listp, 2 * SIZE_T_SIZE);
 
     if(extend_heap(page_size) == NULL)
     {
@@ -226,9 +226,9 @@ static void *first_fit(size_t size)
        // printf("tmp_p :0x%x size: %d is_alloc: %d\n", tmp_p, GET_SIZE(tmp_p), GET_ALLOC(tmp_p));
         if(size <= GET_SIZE(tmp_p) && !GET_ALLOC(tmp_p))
         {
-            return POINT_ADD_BYTE(tmp_p, SIZE_T_SIZE); 
+            return POINTER_ADD_BYTE(tmp_p, SIZE_T_SIZE); 
         }
-        tmp_p = POINT_ADD_BYTE(tmp_p, GET_SIZE(tmp_p));
+        tmp_p = POINTER_ADD_BYTE(tmp_p, GET_SIZE(tmp_p));
         
         //printf("tmp_p :0x%x size: %d is_alloc: %d\n", tmp_p, GET_SIZE(tmp_p), GET_ALLOC(tmp_p));
         
@@ -281,6 +281,7 @@ void *mm_malloc(size_t size)
     if((bp = first_fit(asize)) != NULL)
     {
         place(bp, asize);
+        put((char*)bp - sizeof(size_t), size);
         return bp;
     }
     
@@ -291,6 +292,7 @@ void *mm_malloc(size_t size)
     }
     //printf("new bp 0x%x, extendsize: %d alloc size %d\n", bp, extendsize, GET_SIZE(HEADP(bp)));
     place(bp, asize);
+    put((char*)bp - sizeof(size_t), size);
     return bp;
 }
 
@@ -373,7 +375,7 @@ void *mm_realloc(void *ptr, size_t size)
             ret_ptr = newptr;
             if(newptr != NULL)
             {
-                memcpy(newptr, oldptr, size);
+                memcpy(newptr, oldptr, GET_VALUE((char*)oldptr - sizeof(size_t)));
             }
             mm_free(oldptr);
         }
