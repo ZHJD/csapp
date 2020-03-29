@@ -65,6 +65,9 @@ void *mem_sbrk(int incr)
 	return (void *)-1;
     }
     mem_brk += incr;
+    
+//    printf("return brk: 0x%p, incr : %d\n", old_brk, incr);
+
     return (void *)old_brk;
 }
 
