@@ -77,6 +77,7 @@ static void *heap_listp;
 
 static void *heap_tail;
 
+#define POINTER_LESS(first, second) ((size_t)first < (size_t)second)
 
 static void init_mem_info()
 {
@@ -123,17 +124,19 @@ static void *merge_free_blocks(void *bp)
     void *next_bp = NEXT_BLKP(cur_bp);
 
     void *prev_header = HEADP(prev_bp);
-    void *next_header = footp(next_bp);
+    void *next_header = HEADP(next_bp);
 
     /* 头指针和尾指针用作哨兵，防止越界出错 */
-    if(prev_header < heap_listp)
+    if(POINTER_LESS(prev_header, heap_listp))
     {
-        prev_header = heap_listp - 2 * SIZE_T_SIZE;
+        prev_header = (char*)heap_listp - 2 * SIZE_T_SIZE;
     }
-    if(next_header >= heap_hi)
+    if(POINTER_LESS(heap_hi, next_header))
     {
         next_header = heap_tail;
     }
+
+    printf("prev_header 0x%x, prev_size :\n", prev_header, GET_SIZE(prev_header));
 
     size_t cur_size;
     size_t prev_size;
@@ -152,7 +155,7 @@ static void *merge_free_blocks(void *bp)
         total_size = cur_size + prev_size;
         put(prev_header, pack(total_size, 0x0));
         put(footp(cur_bp), pack(total_size, 0x0));
-        return prev_bp;
+        cur_bp = prev_bp;
     }
     else if(GET_ALLOC(prev_header) && !GET_ALLOC(next_header))
     {
@@ -161,7 +164,6 @@ static void *merge_free_blocks(void *bp)
         total_size = cur_size + next_size;
         put(HEADP(cur_bp), pack(total_size, 0x0));
         put(footp(next_bp), pack(total_size, 0x0));
-        return cur_bp;
     }
     else
     {
@@ -171,8 +173,10 @@ static void *merge_free_blocks(void *bp)
         total_size = cur_size + prev_size + next_size;
         put(HEADP(cur_bp), pack(total_size, 0x0));
         put(footp(next_bp), pack(total_size, 0x0));
-        return prev_bp;
+        cur_bp = prev_bp;
     }
+    printf("cur_size: %d\n", GET_SIZE(HEADP(cur_bp)));
+    return cur_bp;
 }
 
 
@@ -249,7 +253,7 @@ static void *first_fit(size_t size)
     int i = 0;
     while(!(GET_SIZE(tmp_p) == 0 && GET_ALLOC(tmp_p)))
     {
-        printf("tmp_p :0x%x size: %d is_alloc: %d\n", tmp_p, GET_SIZE(tmp_p), GET_ALLOC(tmp_p));
+       // printf("tmp_p :0x%x size: %d is_alloc: %d\n", tmp_p, GET_SIZE(tmp_p), GET_ALLOC(tmp_p));
         if(size <= GET_SIZE(tmp_p) && !GET_ALLOC(tmp_p))
         {
             return POINT_ADD_BYTE(tmp_p, SIZE_T_SIZE); 
@@ -349,7 +353,7 @@ void mm_free(void *ptr)
     }
     set_free(HEADP(ptr));
     set_free(footp(ptr));
-    merge_free_blocks(ptr);
+    //merge_free_blocks(ptr);
 }
 
 /*
