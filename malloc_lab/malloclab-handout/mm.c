@@ -52,8 +52,10 @@ team_t team = {
 /* 是否已经分配 */
 #define GET_ALLOC(p) ((*(size_t *)p) & 0x1)
 
-#define NEXT_BLKP(bp) ((char*)bp + GET_SIZE(HEADP(bp)))
+#define GET_VALUE(p) ((*(size_t*)p))
 
+#define NEXT_BLKP(bp) ((char*)bp + GET_SIZE(HEADP(bp)))
+#define PREV_BLKP(bp) ((char*)bp - GET_SIZE((char*)bp - 2 * SIZE_T_SIZE))
 #define POINT_ADD_BYTE(p, byte) (((char*)p) + byte)
 
 #define WORD  4
@@ -83,6 +85,10 @@ static void init_mem_info()
     cur_heap_size = mem_heapsize();
 }
 
+static inline void set_free(void *p)
+{
+    GET_VALUE(p) &= ~0x7;
+}
 
 /* 
  * get the foot of this block
@@ -268,6 +274,12 @@ void *mm_malloc1(size_t size)
  */
 void mm_free(void *ptr)
 {
+    if(ptr == NULL)
+    {
+        return;
+    }
+    set_free(HEADP(ptr));
+    set_free(footp(ptr));
 }
 
 /*
