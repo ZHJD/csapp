@@ -94,6 +94,40 @@ static inline size_t page_size();
 static void *find_fit(size_t asize);
 static void *first_fit(size_t asize);
 static void place(void *bp, size_t asize);
+
+/* 
+ * mm_init - initialize the malloc package.
+ */
+int mm_init(void)
+{
+    printf("mm_init 0x%p\n", heap_listp);
+    /* 分配4个位置，保持8个字节对齐，heap_listp是8个字节对齐 */
+    if((heap_listp = mem_sbrk(4 * WORD)) == (void *)-1)
+    {
+        return -1;
+    }
+    /* 填充0 为了对齐 */
+    PUT(POINTER_ADD(heap_listp, 0 * WORD), 0);
+
+    /* 设置头部 */
+    PUT(POINTER_ADD(heap_listp, 1 * WORD), PACK(2 * WORD, 1));
+    PUT(POINTER_ADD(heap_listp, 2 * WORD), PACK(2 * WORD, 1));  
+
+    /* 设置尾部 */
+    PUT(POINTER_ADD(heap_listp, 3 * WORD), PACK(0, 1));
+    
+    /* 指向首部的block位置 */
+    heap_listp = POINTER_ADD(heap_listp, 2 * WORD);
+    
+    /* 扩展堆内存失败则返回-1 */
+    if(extend_heap(page_size()) == NULL)
+    {
+        return -1;
+    }
+
+    return 0;
+}
+
 /*
  * 获取页面大小
  */
@@ -196,7 +230,7 @@ static void *extend_heap(size_t asize)
 {
     /* 申请asize个字节，bp作为新块的首地址,并于旧块合并，构造新的尾部 */
     void *bp;
-    if((bp = mem_sbrk(asize)) != (void *)-1)
+    if((bp = mem_sbrk(asize)) == (void *)-1)
     {
         return NULL;
     }
@@ -216,6 +250,7 @@ static void *extend_heap(size_t asize)
 
     /* 和前面的空闲块合并 */
     return merge_free_blocks(bp);
+    //return bp;
 }
 
 /*
@@ -247,40 +282,6 @@ static void place(void *bp, size_t asize)
 
 }
 
-/* 
- * mm_init - initialize the malloc package.
- */
-int mm_init(void)
-{
-    //return 0;
-    printf("mm_init\n");
-    /* 分配4个位置，保持8个字节对齐，heap_listp是8个字节对齐 */
-    if((heap_listp = mem_sbrk(4 * WORD)) == (void *)-1)
-    {
-        printf("mm_init\n");
-        return -1;
-    }
-    /* 填充0 为了对齐 */
-    PUT(POINTER_ADD(heap_listp, 0 * WORD), 0);
-
-    /* 设置头部 */
-    PUT(POINTER_ADD(heap_listp, 1 * WORD), PACK(2 * WORD, 1));
-    PUT(POINTER_ADD(heap_listp, 2 * WORD), PACK(2 * WORD, 1));  
-
-    /* 设置尾部 */
-    PUT(POINTER_ADD(heap_listp, 3 * WORD), PACK(0, 1));
-    
-    /* 指向首部的block位置 */
-    heap_listp = POINTER_ADD(heap_listp, 2 * WORD);
-    
-    /* 扩展堆内存失败则返回-1 */
-    if(extend_heap(page_size()) == NULL)
-    {
-        return -1;
-    }
-
-    return 0;
-}
 
 /* 
  * mm_malloc - Allocate a block by incrementing the brk pointer.
