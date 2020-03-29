@@ -58,35 +58,14 @@ team_t team = {
 #define PREV_BLKP(bp) ((char*)(bp) - GET_SIZE(((char*)(bp) - 2 * SIZE_T_SIZE)))
 #define POINT_ADD_BYTE(p, byte) (((char*)p) + byte)
 
-#define WORD  4
-#define DWORD 8
-
-static void *heap_lo;
-
-/* pointer to the last byte */
-static void *heap_hi;
-
-static size_t heap_size;
 
 static size_t page_size;
-
-static size_t cur_heap_size;
 
 /* 空闲链表头指针 */
 static void *heap_listp;
 
-static void *heap_tail;
-
 #define POINTER_LESS(first, second) ((size_t)first < (size_t)second)
 
-static void init_mem_info()
-{
-    heap_lo = mem_heap_lo();
-    heap_hi = mem_heap_hi();
-    heap_size = mem_heapsize();
-    page_size = mem_pagesize();
-    cur_heap_size = mem_heapsize();
-}
 
 static inline void set_free(void *p)
 {
@@ -182,8 +161,6 @@ static void *extend_heap(size_t size)
         return NULL;
     }
 
-    /* 更新堆的最大地址 */
-    heap_hi = mem_heap_hi();
 
     /* 前一个块的尾部替换掉 */
     put(HEADP(bp), pack(asize, 0));
@@ -192,9 +169,6 @@ static void *extend_heap(size_t size)
     assert(footp(bp) == HEADP(NEXT_BLKP(bp)) - SIZE_T_SIZE);
     /* 形成新的尾部 */
     put(HEADP(NEXT_BLKP(bp)), pack(0, 1));
-
-    /* 每次扩展后设置尾指针 */
-    heap_tail = HEADP(NEXT_BLKP(bp));
 
     //printf("next_blkp: 0x%x\n", HEADP(NEXT_BLKP(bp)));
     return merge_free_blocks(bp);
@@ -205,23 +179,24 @@ static void *extend_heap(size_t size)
  */
 int mm_init(void)
 {
-    init_mem_info();
-    void *p = mem_sbrk(4 * SIZE_T_SIZE);
+    page_size = mem_pagesize();
+
+    void *p = mem_sbrk(3 * SIZE_T_SIZE);
     if((heap_listp = p) == (void*)-1)
     {
         return -1;
     }
-    put(heap_listp, 0);
+    //put(heap_listp, 0);
 
     /* 头部 */
-    put(POINT_ADD_BYTE(heap_listp, 1 * SIZE_T_SIZE), pack(2 * SIZE_T_SIZE, 1));
+    put(POINT_ADD_BYTE(heap_listp, 0 * SIZE_T_SIZE), pack(2 * SIZE_T_SIZE, 1));
     /* 脚部 */
-    put(POINT_ADD_BYTE(heap_listp, 2 * SIZE_T_SIZE), pack(2 * SIZE_T_SIZE, 1));
+    put(POINT_ADD_BYTE(heap_listp, 1 * SIZE_T_SIZE), pack(2 * SIZE_T_SIZE, 1));
     /* 尾部 */
-    put(POINT_ADD_BYTE(heap_listp, 3 * SIZE_T_SIZE), pack(0, 1));
+    put(POINT_ADD_BYTE(heap_listp, 2 * SIZE_T_SIZE), pack(0, 1));
 
     /* 跳过第一个空快 */
-    heap_listp = POINT_ADD_BYTE(heap_listp, 3 * SIZE_T_SIZE);
+    heap_listp = POINT_ADD_BYTE(heap_listp, 2 * SIZE_T_SIZE);
 
     if(extend_heap(page_size) == NULL)
     {
@@ -292,15 +267,12 @@ static void place(void *bp, size_t size)
  */ 
 void *mm_malloc(size_t size)
 {
-    static int i = -1;
-    i++;
+
     if(size == 0)
     {
         return NULL;
     }
-    int newsize = ALIGN(size + SIZE_T_SIZE);
-    /* 加上头部和尾部 */
-    int asize = newsize + 2 * SIZE_T_SIZE;
+    int asize = ALIGN(size + 2 * SIZE_T_SIZE);
 
     void *bp;
     if((bp = first_fit(asize)) != NULL)
@@ -326,7 +298,7 @@ void *mm_malloc(size_t size)
  */
 void *mm_malloc1(size_t size)
 {
-    static int i = -1;
+    //static int i = -1;
     int newsize = ALIGN(size + SIZE_T_SIZE);
     void *p = mem_sbrk(newsize);
     if (p == (void *)-1)
