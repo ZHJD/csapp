@@ -96,7 +96,6 @@ static inline size_t pack(size_t size, size_t alloc)
     return size | alloc;
 }
 
-
 static void *merge_free_blocks(void *bp)
 {
     void *cur_bp = bp;
@@ -248,6 +247,11 @@ static void place(void *bp, size_t size)
         put(HEADP(bp), pack(size, 1));
         put(footp(bp), pack(size, 1));
     }
+    else if(size == 0)
+    {
+        set_free(HEADP(bp));
+        set_free(footp(bp));
+    }
     else
     {
         put(footp(bp), pack(left_size, 0x0));
@@ -273,7 +277,6 @@ void *mm_malloc(size_t size)
         return NULL;
     }
     int asize = ALIGN(size + 2 * SIZE_T_SIZE);
-
     void *bp;
     if((bp = first_fit(asize)) != NULL)
     {
@@ -326,7 +329,7 @@ void mm_free(void *ptr)
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
-void *mm_realloc(void *ptr, size_t size)
+void *mm_realloc1(void *ptr, size_t size)
 {
     void *oldptr = ptr;
     void *newptr;
@@ -344,7 +347,39 @@ void *mm_realloc(void *ptr, size_t size)
 }
 
 
-
+void *mm_realloc(void *ptr, size_t size)
+{
+    if(ptr == NULL)
+    {
+        return mm_malloc(size);
+    }
+    else
+    {
+        void *oldptr = ptr;
+        void *ret_ptr = oldptr;
+        int asize = ALIGN(size + 2 * SIZE_T_SIZE);
+        if(size == 0)
+        {
+            asize = 0;
+        }
+        size_t old_size = GET_SIZE(HEADP(oldptr));
+        if(asize <= old_size)
+        {
+            place(ptr, asize);
+        }
+        else
+        {
+            void *newptr = mm_malloc(size);
+            ret_ptr = newptr;
+            if(newptr != NULL)
+            {
+                memcpy(newptr, oldptr, size);
+            }
+            mm_free(oldptr);
+        }
+        return ret_ptr;
+    }
+}
 
 
 
