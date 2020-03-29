@@ -124,12 +124,12 @@ static void *merge_free_blocks(void *bp)
     void *prev_bp = PREV_BLKP(cur_bp);
     void *next_bp = NEXT_BLKP(cur_bp);
 
-printf("cur_bp:0x%x, prev_bp size: %d\n", cur_bp, GET_SIZE(((char*)cur_bp - 2 * SIZE_T_SIZE)));
+//printf("cur_bp:0x%x, prev_bp size: %d\n", cur_bp, GET_SIZE(((char*)cur_bp - 2 * SIZE_T_SIZE)));
 
     void *prev_header = HEADP(prev_bp);
     void *next_header = HEADP(next_bp);
 
-    printf("headp : 0x%xprev_header 0x%x, prev_size :\n", heap_listp, prev_header, GET_SIZE(prev_header));
+    //printf("headp : 0x%xprev_header 0x%x, prev_size :\n", heap_listp, prev_header, GET_SIZE(prev_header));
 
     size_t cur_size;
     size_t prev_size;
@@ -168,7 +168,7 @@ printf("cur_bp:0x%x, prev_bp size: %d\n", cur_bp, GET_SIZE(((char*)cur_bp - 2 * 
         put(footp(next_bp), pack(total_size, 0x0));
         cur_bp = prev_bp;
     }
-    printf("cur_size: %d\n", GET_SIZE(HEADP(cur_bp)));
+    //printf("cur_size: %d\n", GET_SIZE(HEADP(cur_bp)));
     return cur_bp;
 }
 
@@ -196,7 +196,7 @@ static void *extend_heap(size_t size)
     /* 每次扩展后设置尾指针 */
     heap_tail = HEADP(NEXT_BLKP(bp));
 
-    printf("next_blkp: 0x%x\n", HEADP(NEXT_BLKP(bp)));
+    //printf("next_blkp: 0x%x\n", HEADP(NEXT_BLKP(bp)));
     return merge_free_blocks(bp);
 }
 
@@ -237,16 +237,16 @@ int mm_init(void)
 //    printf("head hi: 0x%x\n", heap_hi);
 //    printf("heap_hi - heap_lo %d\n", (char*)heap_hi - (char*)heap_lo);
 
-    printf("head list p: 0x%x\n", heap_listp);
+   // printf("head list p: 0x%x\n", heap_listp);
     return 0;
 }
 
 
 static void *first_fit(size_t size)
 {
-    printf("first_fit\n");
+    //printf("first_fit\n");
     void *tmp_p = heap_listp;
-    int i = 0;
+    //int i = 0;
     while(!(GET_SIZE(tmp_p) == 0 && GET_ALLOC(tmp_p)))
     {
        // printf("tmp_p :0x%x size: %d is_alloc: %d\n", tmp_p, GET_SIZE(tmp_p), GET_ALLOC(tmp_p));
@@ -256,8 +256,8 @@ static void *first_fit(size_t size)
         }
         tmp_p = POINT_ADD_BYTE(tmp_p, GET_SIZE(tmp_p));
         
-        printf("tmp_p :0x%x size: %d is_alloc: %d\n", tmp_p, GET_SIZE(tmp_p), GET_ALLOC(tmp_p));
-        i++;
+        //printf("tmp_p :0x%x size: %d is_alloc: %d\n", tmp_p, GET_SIZE(tmp_p), GET_ALLOC(tmp_p));
+        
     }
     return NULL;
 }
@@ -314,7 +314,7 @@ void *mm_malloc(size_t size)
     {
         return NULL;
     }
-    printf("new bp 0x%x, extendsize: %d alloc size %d\n", bp, extendsize, GET_SIZE(HEADP(bp)));
+    //printf("new bp 0x%x, extendsize: %d alloc size %d\n", bp, extendsize, GET_SIZE(HEADP(bp)));
     place(bp, asize);
     return bp;
 }
