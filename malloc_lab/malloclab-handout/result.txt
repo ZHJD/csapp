@@ -44,3 +44,24 @@ trace  valid  util     ops      secs  Kops
 Total          74%  112372  1.603964    70
 
 Perf index = 44 (util) + 5 (thru) = 49/100
+Team Name:ateam
+Member 1 :Harry Bovik:bovik@cs.cmu.edu
+Using default tracefiles in ./traces/
+Measuring performance with gettimeofday().
+
+Results for mm malloc:
+trace  valid  util     ops      secs  Kops
+ 0       yes   99%    5694  0.023606   241
+ 1       yes   99%    5848  0.017601   332
+ 2       yes   99%    6648  0.030278   220
+ 3       yes  100%    5380  0.022456   240
+ 4       yes   66%   14400  0.000219 65844
+ 5       yes   92%    4800  0.020524   234
+ 6       yes   92%    4800  0.017861   269
+ 7       yes   55%   12000  0.448493    27
+ 8       yes   51%   24000  0.765218    31
+ 9       yes   92%   14401  0.000417 34526
+10       yes   86%   14401  0.000261 55134
+Total          85%  112372  1.346934    83
+
+Perf index = 51 (util) + 6 (thru) = 56/100
