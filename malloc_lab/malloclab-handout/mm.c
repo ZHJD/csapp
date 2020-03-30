@@ -100,7 +100,6 @@ static void place(void *bp, size_t asize);
  */
 int mm_init(void)
 {
-    printf("mm_init 0x%p\n", heap_listp);
     /* 分配4个位置，保持8个字节对齐，heap_listp是8个字节对齐 */
     if((heap_listp = mem_sbrk(4 * WORD)) == (void *)-1)
     {
@@ -153,7 +152,6 @@ static void *merge_free_blocks(void *bp)
 
     size_t total_size = 0;
     
-    printf("merge\n");
     /* 前后都已经分配 */
     if(IS_ALLOC(prev_bp) && IS_ALLOC(next_bp))
     {
@@ -190,7 +188,7 @@ static void *merge_free_blocks(void *bp)
         ret_bp = prev_bp;
     
     }
-    printf("ret_bp 0x%p\n", ret_bp);
+//    printf("ret_bp 0x%p\n", ret_bp);
     assert(ret_bp != NULL);
     return ret_bp;
 }
