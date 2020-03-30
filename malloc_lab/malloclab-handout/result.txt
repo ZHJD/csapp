@@ -65,3 +65,48 @@ trace  valid  util     ops      secs  Kops
 Total          85%  112372  1.346934    83
 
 Perf index = 51 (util) + 6 (thru) = 56/100
+Team Name:personal project
+Member 1 :zhang:bovik@cs.cmu.edu
+Using default tracefiles in ./traces/
+Measuring performance with gettimeofday().
+
+Testing mm malloc
+Reading tracefile: amptjp-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: cccp-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: cp-decl-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: expr-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: coalescing-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: random-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: random2-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: binary-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: binary2-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: realloc-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: realloc2-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+
+Results for mm malloc:
+trace  valid  util     ops      secs  Kops
+ 0       yes   99%    5694  0.007887   722
+ 1       yes   99%    5848  0.006818   858
+ 2       yes   99%    6648  0.011574   574
+ 3       yes  100%    5380  0.008561   628
+ 4       yes   66%   14400  0.000089162528
+ 5       yes   92%    4800  0.007636   629
+ 6       yes   92%    4800  0.007214   665
+ 7       yes   55%   12000  0.160257    75
+ 8       yes   51%   24000  0.288864    83
+ 9       yes   92%   14401  0.000163 88622
+10       yes   86%   14401  0.000105137545
+Total          85%  112372  0.499168   225
+
+Perf index = 51 (util) + 15 (thru) = 66/100
