@@ -89,8 +89,11 @@ team_t team = {
 
 
 /* 针对空闲链表的next和pre */
-#define NEXT_FREEPTR(bp) (POINTER_ADD(bp, 2 * WORD))
-#define PREV_FREEPTR(bp) (POINTER_ADD(bp, 1 * WORD))
+#define NEXT_FREEPTR(bp) (POINTER_ADD(bp, 1 * WORD))
+#define PREV_FREEPTR(bp) (POINTER_ADD(bp, 0 * WORD))
+
+/* 表示空闲块结束 */
+#define END 0x1
 
 /***********************************************************
  * 由于对齐原因，最小块是16个字节，因此可以利用空闲块中的8个字节存放
@@ -124,7 +127,8 @@ static void *find_fit(size_t asize);
 static void *first_fit(size_t asize);
 static void place(void *bp, size_t asize);
 static void mm_check();
-static void insert_free_block(void *bp);
+static void insert_free_block_in_head(void *bp);
+static void remove_free_block(void *bp);
 
 /*
  * mm_check() 检查堆内存的分配情况，便于调试
@@ -134,6 +138,7 @@ static void mm_check()
     printf("\n********** mm_check() ***************\n");
     void *bp = heap_listp;
 
+    printf("\n********** all blocks ***************\n");
     while(GET(HDPR(bp)) != 0x01)
     {
         printf("bp address: %p, size %d, alloc %d\n", bp, GET_SIZE(HDPR(bp)), IS_ALLOC(bp));
@@ -151,6 +156,16 @@ static void mm_check()
         }
         bp = NEXT_BP(bp);
     }
+    printf("\n********** free blocks ***************\n");
+
+    void *free_bp = free_listp;
+    int i = 0;
+    while(free_bp != END && i++ < 5)
+    {
+        printf("free_bp: %p, size %d\n", free_bp, GET_SIZE(HDPR(free_bp)));
+        free_bp = (void*)GET(NEXT_FREEPTR(free_bp));
+    }
+
     printf("********** mm_check() done ***************\n");
 }
 
@@ -168,10 +183,10 @@ int mm_init(void)
     PUT(POINTER_ADD(heap_listp, 1 * WORD), PACK(4 * WORD, 1));
 
     /* prev */
-    PUT(POINTER_ADD(heap_listp, 2 * WORD), 1);
+    PUT(POINTER_ADD(heap_listp, 2 * WORD), END);
 
     /* next空闲块 */
-    PUT(POINTER_ADD(heap_listp, 3 * WORD), 1);  
+    PUT(POINTER_ADD(heap_listp, 3 * WORD), END);  
 
     /* 头部footer */
     PUT(POINTER_ADD(heap_listp, 4 * WORD), PACK(4 * WORD, 1));
@@ -184,6 +199,9 @@ int mm_init(void)
 
     /* 空闲块首部同样指向这个位置 */
     free_listp = heap_listp;
+
+    assert(GET(NEXT_FREEPTR(free_listp)) == END);
+
     assert(IS_ALLOC(heap_listp));
     //printf("\n preface size %d\n", GET_SIZE(HDPR(heap_listp)));
     //printf("\n preface size %d, heap_listp: 0x%p\n", GET_SIZE(HDPR(heap_listp)), heap_listp);
@@ -207,11 +225,58 @@ static inline size_t page_size()
 }
 
 /*
- * 总是插在空闲链表的头部
+ * 总是插在空闲链表的头部，使用头插法
  */
-static void insert_free_block(void *bp)
+static void insert_free_block_in_head(void *bp)
 {
-    //PUT(NEXT_FREEPTR(bp), )
+    /* 头结点的下一个结点 */
+    size_t next_bp = GET(NEXT_FREEPTR(free_listp));
+
+    assert(free_listp == heap_listp);
+
+    /* bp的下一个结点是next_bp */
+    PUT(NEXT_FREEPTR(bp), next_bp);
+    if(next_bp != END)
+    {
+        /* 如果不为空则bp的后一个结点的前驱是bp */
+        PUT(PREV_FREEPTR(next_bp), (size_t)bp);
+    }
+    /* bp的前驱是free_listp */
+    PUT(PREV_FREEPTR(bp), (size_t)free_listp);
+
+    assert(GET(PREV_FREEPTR(bp)) == free_listp);
+
+    /* free_listp的后继是bp */
+    PUT(NEXT_FREEPTR(free_listp), (size_t)bp);
+
+    /* 如果插入成功的话，头结点的后继的前驱是头结点本身 */
+    assert(GET(PREV_FREEPTR(GET(NEXT_FREEPTR(free_listp)))
+        == (size_t)free_listp));
+    //mm_check();
+}
+/*
+ * 从空闲链表中去除空闲块
+ */
+static void remove_free_block(void *bp)
+{
+    size_t prev_bp = GET(PREV_FREEPTR(bp));
+    size_t next_bp = GET(NEXT_FREEPTR(bp));
+
+    /* 如果是结尾块 */
+    if(next_bp == END)
+    {
+        PUT(NEXT_FREEPTR(prev_bp), END);
+    }
+    else
+    {
+        next_bp = GET(NEXT_FREEPTR(bp));
+        /* 更改后继的前驱 */
+        PUT(PREV_FREEPTR(next_bp), prev_bp);
+
+        /* 更改前驱的后继 */
+        PUT(NEXT_FREEPTR(prev_bp), next_bp);
+    }
+    //mm_check();
 }
 
 /*
@@ -219,6 +284,8 @@ static void insert_free_block(void *bp)
  */
 static void *merge_free_blocks(void *bp)
 {
+    //remove_free_block(bp);
+
     assert(IS_ALLOC(heap_listp) == 1);
     assert(GET((HDPR(heap_listp))) == GET(FTPR(heap_listp)));
     /* 因为有首部和尾部， 所以不需要担心边界问题 */
@@ -229,18 +296,19 @@ static void *merge_free_blocks(void *bp)
     assert(GET(HDPR(bp)) == GET(FTPR(bp)));
 
     /* 返回值 */
-    void *ret_bp;
+    void *ret_bp = bp;
 
     size_t total_size = 0;
     
     /* 前后都已经分配 */
     if(IS_ALLOC(prev_bp) && IS_ALLOC(next_bp))
     {
-        return bp;
+        ;
     }
     /* 前一个未分配，后一个已经分哦 */
     else if(!IS_ALLOC(prev_bp) && IS_ALLOC(next_bp))
     {
+        remove_free_block(prev_bp);
         total_size = GET_SIZE(HDPR(prev_bp)) + GET_SIZE(HDPR(bp));
         /* 前一个空闲块的头部 */
         PUT(HDPR(prev_bp), PACK(total_size, 0x0));
@@ -251,6 +319,7 @@ static void *merge_free_blocks(void *bp)
     /* 当前块和后一个块 */
     else if(IS_ALLOC(prev_bp) && !IS_ALLOC(next_bp))
     {
+        remove_free_block(next_bp);
         total_size = GET_SIZE(HDPR(bp)) + GET_SIZE(HDPR(next_bp));
         /* 设置当前块首部 */
         PUT(HDPR(bp), PACK(total_size, 0x0));
@@ -261,6 +330,8 @@ static void *merge_free_blocks(void *bp)
     /* 前后都是空 */
     else
     {
+        remove_free_block(prev_bp);
+        remove_free_block(next_bp);
         total_size = GET_SIZE(HDPR(prev_bp)) + GET_SIZE(HDPR(bp)) + GET_SIZE(HDPR(next_bp));
         /* 前一个空闲块的头部 */
         PUT(HDPR(prev_bp), PACK(total_size, 0x0));
@@ -269,6 +340,8 @@ static void *merge_free_blocks(void *bp)
         ret_bp = prev_bp;
     
     }
+
+    insert_free_block_in_head(ret_bp);
     //printf("ret_bp 0x%p\n", ret_bp);
     assert(ret_bp != NULL);
     return ret_bp;
@@ -330,6 +403,8 @@ static void *extend_heap(size_t asize)
 
     /* 设置结尾部分 */
     PUT(HDPR(NEXT_BP(bp)), PACK(0, 0x1));
+    
+    //insert_free_block_in_head(bp);
 
     /* 和前面的空闲块合并 */
     return merge_free_blocks(bp);
@@ -341,15 +416,23 @@ static void *extend_heap(size_t asize)
  */
 static void place(void *bp, size_t asize)
 {
+    if(!IS_ALLOC(bp))
+    {
+        /* 去除 */
+        remove_free_block(bp);
+    }
+
     /* 分配后剩余的空间 */
     size_t left_size = GET_SIZE(HDPR(bp)) - asize;
     if(left_size < MIN_BLOCK_SIZE)
     {
         PUT(HDPR(bp), PACK(GET_SIZE(HDPR(bp)), 0x1));
         PUT(FTPR(bp), PACK(GET_SIZE(HDPR(bp)), 0x1));
+
     }
     else // 分割
     {
+        
         PUT(FTPR(bp), PACK(left_size, 0x0));
 
         PUT(HDPR(bp), PACK(asize, 0x1));
@@ -364,7 +447,12 @@ static void place(void *bp, size_t asize)
 
         assert(GET(HDPR(bp)) == GET(FTPR(bp)));
         assert(GET(HDPR(NEXT_BP(bp))) == GET(FTPR(NEXT_BP(bp))));
+
+        /* 加入剩下的的块 */
+        insert_free_block_in_head(NEXT_BP(bp));
     }
+
+    //mm_check();
 
 }
 
@@ -426,6 +514,7 @@ void mm_free(void *ptr)
     //printf("free bp 0x%p, size %d\n", ptr, size);
     PUT(HDPR(ptr), PACK(size, 0x0));
     PUT(FTPR(ptr), PACK(size, 0x0));
+    //insert_free_block_in_head(ptr);
     merge_free_blocks(ptr);
     //mm_check();
 }
@@ -455,15 +544,19 @@ void *mm_realloc(void *ptr, size_t size)
             void *next_bp = NEXT_BP(ptr);
             if(asize <= old_size)
             {
+                //insert_free_block_in_head(ptr);
                 place(ptr, asize);
                 return ptr;
             }
             else if(!IS_ALLOC(next_bp) && asize <= old_size + GET_SIZE(HDPR(next_bp)))
             {
+                remove_free_block(next_bp);
                 size_t total_size = old_size + GET_SIZE(HDPR(next_bp));
                 /* 合并当前块和下一个块 */
-                PUT(HDPR(ptr), PACK(total_size, 0x0));
-                PUT(FTPR(next_bp), PACK(total_size, 0x0));
+                PUT(HDPR(ptr), PACK(total_size, 0x1));
+                PUT(FTPR(next_bp), PACK(total_size, 0x1));
+                
+                //insert_free_block_in_head(ptr);
                 place(ptr, asize);
                 return ptr;
             }
