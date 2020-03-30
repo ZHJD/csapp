@@ -354,22 +354,23 @@ static void *first_fit(size_t asize)
 {
     //printf("\n preface size %d, heap_listp: 0x%p\n", GET_SIZE(HDPR(heap_listp)), heap_listp);
     assert(GET_SIZE(HDPR(heap_listp)) == 2 * WORD);
-    void *bp = NEXT_BP(heap_listp);
+    void *free_bp = (void*)GET(NEXT_FREEPTR(free_listp));
     
     //int i = 0;
     /* 当空闲块不空时 */
-    while(GET(HDPR(bp)) != 0x1)
+    while(free_bp != END)
     {
-        if(asize <= GET_SIZE(HDPR(bp)) && !IS_ALLOC(bp))
+        if(asize <= GET_SIZE(HDPR(free_bp)) && !IS_ALLOC(free_bp))
         {
-            return bp;
+            return free_bp;
         }
         //printf("bp address 0x%p, bp size: %d alloc: %d, apply size %d\n", bp, GET_SIZE(HDPR(bp)), IS_ALLOC(bp), asize);
-        bp = NEXT_BP(bp);
+        free_bp = (void*)GET(NEXT_FREEPTR(free_bp));
     }
 
     return NULL;
 }
+
 
 /*
  * 寻找一个合适的空闲块
