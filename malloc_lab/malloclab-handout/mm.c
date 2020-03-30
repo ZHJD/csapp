@@ -362,6 +362,7 @@ static void *first_fit(size_t asize)
     {
         if(asize <= GET_SIZE(HDPR(free_bp)) && !IS_ALLOC(free_bp))
         {
+            remove_free_block(free_bp);
             return free_bp;
         }
         //printf("bp address 0x%p, bp size: %d alloc: %d, apply size %d\n", bp, GET_SIZE(HDPR(bp)), IS_ALLOC(bp), asize);
@@ -417,11 +418,6 @@ static void *extend_heap(size_t asize)
  */
 static void place(void *bp, size_t asize)
 {
-    if(!IS_ALLOC(bp))
-    {
-        /* 去除 */
-        remove_free_block(bp);
-    }
 
     /* 分配后剩余的空间 */
     size_t left_size = GET_SIZE(HDPR(bp)) - asize;
@@ -496,7 +492,7 @@ void *mm_malloc(size_t size)
     {
         return NULL;
     }
-
+    remove_free_block(bp);
     place(bp, asize);
     //mm_check();
     return bp;
@@ -551,11 +547,12 @@ void *mm_realloc(void *ptr, size_t size)
             }
             else if(!IS_ALLOC(next_bp) && asize <= old_size + GET_SIZE(HDPR(next_bp)))
             {
+                /* 去除待合并的后面的空闲块 */
                 remove_free_block(next_bp);
                 size_t total_size = old_size + GET_SIZE(HDPR(next_bp));
                 /* 合并当前块和下一个块 */
-                PUT(HDPR(ptr), PACK(total_size, 0x1));
-                PUT(FTPR(next_bp), PACK(total_size, 0x1));
+                PUT(HDPR(ptr), PACK(total_size, 0x0));
+                PUT(FTPR(next_bp), PACK(total_size, 0x0));
                 
                 //insert_free_block_in_head(ptr);
                 place(ptr, asize);
