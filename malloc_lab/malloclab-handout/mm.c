@@ -115,9 +115,23 @@ int mm_init(void)
     /* 设置尾部 */
     PUT(POINTER_ADD(heap_listp, 3 * WORD), PACK(0, 1));
     
+
+    assert(GET(POINTER_ADD(heap_listp, 1 * WORD)) == PACK(2 * WORD, 1));
+    assert(GET(POINTER_ADD(heap_listp, 2 * WORD)) == PACK(2 * WORD, 1));
+    
+    //printf("\n preface size %d\n", GET_SIZE(POINTER_ADD(heap_listp, 3 * WORD)));
+
+    
+
+    
     /* 指向首部的block位置 */
     heap_listp = POINTER_ADD(heap_listp, 2 * WORD);
     
+    assert(IS_ALLOC(heap_listp));
+    //printf("\n preface size %d\n", GET_SIZE(HDPR(heap_listp)));
+    printf("\n preface size %d, heap_listp: 0x%p\n", GET_SIZE(HDPR(heap_listp)), heap_listp);
+    assert(HDPR(heap_listp) == POINTER_SUB(heap_listp, WORD));
+    assert(GET_SIZE(HDPR(heap_listp)) == 2 * WORD);
     /* 扩展堆内存失败则返回-1 */
     if(extend_heap(page_size()) == NULL)
     {
@@ -140,10 +154,12 @@ static inline size_t page_size()
  */
 static void *merge_free_blocks(void *bp)
 {
+    assert(IS_ALLOC(heap_listp) == 1);
+    assert(GET((HDPR(heap_listp))) == GET(FTPR(heap_listp)));
     /* 因为有首部和尾部， 所以不需要担心边界问题 */
     void *prev_bp = PREV_BP(bp);
     void *next_bp = NEXT_BP(bp);
-
+   
     assert(GET(HDPR(prev_bp)) == GET(FTPR(prev_bp)));
     assert(GET(HDPR(bp)) == GET(FTPR(bp)));
 
@@ -198,16 +214,20 @@ static void *merge_free_blocks(void *bp)
  */
 static void *first_fit(size_t asize)
 {
+    printf("\n preface size %d, heap_listp: 0x%p\n", GET_SIZE(HDPR(heap_listp)), heap_listp);
+    assert(GET_SIZE(HDPR(heap_listp)) == 2 * WORD);
     void *bp = NEXT_BP(heap_listp);
-
+    
+    int i = 0;
     /* 当空闲块不空时 */
-    while(GET(HDPR(bp)) != 0x1)
+    while(GET(HDPR(bp)) != 0x1 && i++ < 11)
     {
         if(asize <= GET_SIZE(HDPR(bp)) && !IS_ALLOC(bp))
         {
             return bp;
         }
-        bp = POINTER_ADD(bp, GET_SIZE(HDPR(bp)));
+        printf("bp address 0x%p, bp size: %d alloc: %d\n", bp, GET_SIZE(HDPR(bp)), IS_ALLOC(bp));
+        bp = NEXT_BP(bp);
     }
 
     return NULL;
@@ -244,11 +264,11 @@ static void *extend_heap(size_t asize)
     PUT(FTPR(bp), PACK(asize, 0x0));
 
     /* 设置结尾部分 */
-    PUT(NEXT_BP(bp), PACK(0, 0x1));
+    PUT(HDPR(NEXT_BP(bp)), PACK(0, 0x1));
 
     /* 和前面的空闲块合并 */
-    return merge_free_blocks(bp);
-    //return bp;
+    //return merge_free_blocks(bp);
+    return bp;
 }
 
 /*
@@ -272,7 +292,7 @@ static void place(void *bp, size_t asize)
         /* GET_SIZE 依赖于头部，头部已经设置，这里时新的尾部 */
         PUT(FTPR(bp), PACK(asize, 0x1));
 
-        assert(FTPR(bp) + 2 * WORD == HDPR(NEXT_BP(bp)));
+        assert(FTPR(bp) + 1 * WORD == HDPR(NEXT_BP(bp)));
 
         /* 设置下一个空闲块的头部 */
         PUT(HDPR(NEXT_BP(bp)), PACK(left_size, 0x0));
@@ -285,7 +305,7 @@ static void place(void *bp, size_t asize)
  * mm_malloc - Allocate a block by incrementing the brk pointer.
  *     Always allocate a block whose size is a multiple of the alignment.
  */
-void *mm_malloc(size_t size)
+void *mm_malloc1(size_t size)
 {
     int newsize = ALIGN(size + SIZE_T_SIZE);
     void *p = mem_sbrk(newsize);
@@ -300,7 +320,7 @@ void *mm_malloc(size_t size)
 /*
  * mm_malloc - 在堆上分配8字节对齐的大于等于size大小的内存
  */
-void *mm_malloc1(size_t size)
+void *mm_malloc(size_t size)
 {
     int asize = ALIGN(size + DWORD);
 
