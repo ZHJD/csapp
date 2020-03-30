@@ -84,6 +84,7 @@ team_t team = {
 /* 由于要8字节对齐，header + foot = 8, 因此一个块最少占据16字节 */
 #define MIN_BLOCK_SIZE 16
 
+#define LESS(first, Second) (((size_t)(first)) < ((size_t)(Second)))
 
 /* 隐式链表首地址 */
 static void *heap_listp;
@@ -94,6 +95,35 @@ static inline size_t page_size();
 static void *find_fit(size_t asize);
 static void *first_fit(size_t asize);
 static void place(void *bp, size_t asize);
+static void mm_check();
+
+/*
+ * mm_check() 检查堆内存的分配情况，便于调试
+ */
+static void mm_check()
+{
+    printf("\n********** mm_check() ***************\n");
+    void *bp = heap_listp;
+
+    while(GET(HDPR(bp)) != 0x01)
+    {
+        printf("bp address: %p, size %d, alloc %d\n", bp, GET_SIZE(HDPR(bp)), IS_ALLOC(bp));
+        if(GET(HDPR(bp)) != GET(FTPR(bp)))
+        {
+            printf("!!!!! header not equal to foot\n");
+            exit(1);
+        }
+        if(LESS(HDPR(NEXT_BP(bp)), FTPR(bp)))
+        {
+            printf("!!!!overlap occur\n");
+            printf("HDPR(NEXT_BP(bp)) = %p, FTPR(bp) = %p\n", HDPR(NEXT_BP(bp)),
+                FTPR(bp));
+            exit(1);
+        }
+        bp = NEXT_BP(bp);
+    }
+    printf("********** mm_check() done ***************\n");
+}
 
 /* 
  * mm_init - initialize the malloc package.
@@ -184,7 +214,7 @@ static void *merge_free_blocks(void *bp)
         ret_bp = prev_bp;
     }
     /* 当前块和后一个块 */
-    else if(IS_ALLOC(bp) && !IS_ALLOC(next_bp))
+    else if(IS_ALLOC(prev_bp) && !IS_ALLOC(next_bp))
     {
         total_size = GET_SIZE(HDPR(bp)) + GET_SIZE(HDPR(next_bp));
         /* 设置当前块首部 */
@@ -226,7 +256,7 @@ static void *first_fit(size_t asize)
         {
             return bp;
         }
-        //printf("bp address 0x%p, bp size: %d alloc: %d\n", bp, GET_SIZE(HDPR(bp)), IS_ALLOC(bp));
+        //printf("bp address 0x%p, bp size: %d alloc: %d, apply size %d\n", bp, GET_SIZE(HDPR(bp)), IS_ALLOC(bp), asize);
         bp = NEXT_BP(bp);
     }
 
@@ -296,6 +326,9 @@ static void place(void *bp, size_t asize)
 
         /* 设置下一个空闲块的头部 */
         PUT(HDPR(NEXT_BP(bp)), PACK(left_size, 0x0));
+
+        assert(GET(HDPR(bp)) == GET(FTPR(bp)));
+        assert(GET(HDPR(NEXT_BP(bp))) == GET(FTPR(NEXT_BP(bp))));
     }
 
 }
@@ -328,6 +361,7 @@ void *mm_malloc(size_t size)
     if((bp = find_fit(asize)) != NULL)
     {
         place(bp, asize);
+        //mm_check();
         return bp;
     }
 
@@ -340,7 +374,7 @@ void *mm_malloc(size_t size)
     }
 
     place(bp, asize);
-
+    //mm_check();
     return bp;
 }
 
@@ -354,9 +388,11 @@ void mm_free(void *ptr)
         return;
     }
     size_t size = GET_SIZE(HDPR(ptr));
+    //printf("free bp 0x%p, size %d\n", ptr, size);
     PUT(HDPR(ptr), PACK(size, 0x0));
     PUT(FTPR(ptr), PACK(size, 0x0));
-    //merge_free_blocks(ptr);
+    merge_free_blocks(ptr);
+    //mm_check();
 }
 
 /*
