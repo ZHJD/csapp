@@ -129,7 +129,7 @@ int mm_init(void)
     
     assert(IS_ALLOC(heap_listp));
     //printf("\n preface size %d\n", GET_SIZE(HDPR(heap_listp)));
-    printf("\n preface size %d, heap_listp: 0x%p\n", GET_SIZE(HDPR(heap_listp)), heap_listp);
+    //printf("\n preface size %d, heap_listp: 0x%p\n", GET_SIZE(HDPR(heap_listp)), heap_listp);
     assert(HDPR(heap_listp) == POINTER_SUB(heap_listp, WORD));
     assert(GET_SIZE(HDPR(heap_listp)) == 2 * WORD);
     /* 扩展堆内存失败则返回-1 */
@@ -204,7 +204,7 @@ static void *merge_free_blocks(void *bp)
         ret_bp = prev_bp;
     
     }
-//    printf("ret_bp 0x%p\n", ret_bp);
+    //printf("ret_bp 0x%p\n", ret_bp);
     assert(ret_bp != NULL);
     return ret_bp;
 }
@@ -214,19 +214,19 @@ static void *merge_free_blocks(void *bp)
  */
 static void *first_fit(size_t asize)
 {
-    printf("\n preface size %d, heap_listp: 0x%p\n", GET_SIZE(HDPR(heap_listp)), heap_listp);
+    //printf("\n preface size %d, heap_listp: 0x%p\n", GET_SIZE(HDPR(heap_listp)), heap_listp);
     assert(GET_SIZE(HDPR(heap_listp)) == 2 * WORD);
     void *bp = NEXT_BP(heap_listp);
     
-    int i = 0;
+    //int i = 0;
     /* 当空闲块不空时 */
-    while(GET(HDPR(bp)) != 0x1 && i++ < 11)
+    while(GET(HDPR(bp)) != 0x1)
     {
         if(asize <= GET_SIZE(HDPR(bp)) && !IS_ALLOC(bp))
         {
             return bp;
         }
-        printf("bp address 0x%p, bp size: %d alloc: %d\n", bp, GET_SIZE(HDPR(bp)), IS_ALLOC(bp));
+        //printf("bp address 0x%p, bp size: %d alloc: %d\n", bp, GET_SIZE(HDPR(bp)), IS_ALLOC(bp));
         bp = NEXT_BP(bp);
     }
 
@@ -267,8 +267,8 @@ static void *extend_heap(size_t asize)
     PUT(HDPR(NEXT_BP(bp)), PACK(0, 0x1));
 
     /* 和前面的空闲块合并 */
-    //return merge_free_blocks(bp);
-    return bp;
+    return merge_free_blocks(bp);
+    //return bp;
 }
 
 /*
@@ -349,6 +349,14 @@ void *mm_malloc(size_t size)
  */
 void mm_free(void *ptr)
 {
+    if(ptr == NULL)
+    {
+        return;
+    }
+    size_t size = GET_SIZE(HDPR(ptr));
+    PUT(HDPR(ptr), PACK(size, 0x0));
+    PUT(FTPR(ptr), PACK(size, 0x0));
+    //merge_free_blocks(ptr);
 }
 
 /*
@@ -363,7 +371,7 @@ void *mm_realloc(void *ptr, size_t size)
     newptr = mm_malloc(size);
     if (newptr == NULL)
       return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
+    copySize = GET_SIZE(HDPR(ptr));
     if (size < copySize)
       copySize = size;
     memcpy(newptr, oldptr, copySize);
