@@ -25,9 +25,9 @@
  ********************************************************/
 team_t team = {
     /* Team name */
-    "ateam",
+    "personal project",
     /* First member's full name */
-    "Harry Bovik",
+    "zhang",
     /* First member's email address */
     "bovik@cs.cmu.edu",
     /* Second member's full name (leave blank if none) */
@@ -87,8 +87,35 @@ team_t team = {
 
 #define LESS(first, Second) (((size_t)(first)) < ((size_t)(Second)))
 
+
+/* 针对空闲链表的next和pre */
+#define NEXT_FREEPTR(bp) (POINTER_ADD(bp, 2 * WORD))
+#define PREV_FREEPTR(bp) (POINTER_ADD(bp, 1 * WORD))
+
+/***********************************************************
+ * 由于对齐原因，最小块是16个字节，因此可以利用空闲块中的8个字节存放
+ * prev 和 next 指针，加快空闲块的查找
+ * 头部格式
+ *  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ * |       |       |       |       |
+ * |header |prev   |next   |footer |
+ * |_ _ _ _|_ _ _ _|_ _ _ _|_ _ _ _|
+ *
+ *  free block 格式
+ *  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ * |      |      |     |               |       |
+ * |header|prev  |next |    free       |footer |
+ * |_ _ _ | _ _ _|_ _ _|_ _ _ _ _ _ _ _|_ _ _ _|
+ * 而非空闲块没有中间的prev和next
+ * free_listp 指向头结点的prev处
+*************************************************************/
+
+
 /* 隐式链表首地址 */
 static void *heap_listp;
+
+/* 指向第一个空闲块 */
+static void *free_listp;
 
 static void *extend_heap(size_t asize);
 static void *merge_free_blocks(void *bp);
@@ -97,6 +124,7 @@ static void *find_fit(size_t asize);
 static void *first_fit(size_t asize);
 static void place(void *bp, size_t asize);
 static void mm_check();
+static void insert_free_block(void *bp);
 
 /*
  * mm_check() 检查堆内存的分配情况，便于调试
@@ -132,32 +160,30 @@ static void mm_check()
 int mm_init(void)
 {
     /* 分配4个位置，保持8个字节对齐，heap_listp是8个字节对齐 */
-    if((heap_listp = mem_sbrk(4 * WORD)) == (void *)-1)
+    if((heap_listp = mem_sbrk(6 * WORD)) == (void *)-1)
     {
         return -1;
     }
-    /* 填充0 为了对齐 */
-    PUT(POINTER_ADD(heap_listp, 0 * WORD), 0);
+    /* 头部的header */
+    PUT(POINTER_ADD(heap_listp, 1 * WORD), PACK(4 * WORD, 1));
 
-    /* 设置头部 */
-    PUT(POINTER_ADD(heap_listp, 1 * WORD), PACK(2 * WORD, 1));
-    PUT(POINTER_ADD(heap_listp, 2 * WORD), PACK(2 * WORD, 1));  
+    /* prev */
+    PUT(POINTER_ADD(heap_listp, 2 * WORD), 1);
+
+    /* next空闲块 */
+    PUT(POINTER_ADD(heap_listp, 3 * WORD), 1);  
+
+    /* 头部footer */
+    PUT(POINTER_ADD(heap_listp, 4 * WORD), PACK(4 * WORD, 1));
 
     /* 设置尾部 */
-    PUT(POINTER_ADD(heap_listp, 3 * WORD), PACK(0, 1));
+    PUT(POINTER_ADD(heap_listp, 5 * WORD), PACK(0, 1));
     
-
-    assert(GET(POINTER_ADD(heap_listp, 1 * WORD)) == PACK(2 * WORD, 1));
-    assert(GET(POINTER_ADD(heap_listp, 2 * WORD)) == PACK(2 * WORD, 1));
-    
-    //printf("\n preface size %d\n", GET_SIZE(POINTER_ADD(heap_listp, 3 * WORD)));
-
-    
-
-    
-    /* 指向首部的block位置 */
+    /* 指向首部的block位置，也就是prev的地方 */
     heap_listp = POINTER_ADD(heap_listp, 2 * WORD);
-    
+
+    /* 空闲块首部同样指向这个位置 */
+    free_listp = heap_listp;
     assert(IS_ALLOC(heap_listp));
     //printf("\n preface size %d\n", GET_SIZE(HDPR(heap_listp)));
     //printf("\n preface size %d, heap_listp: 0x%p\n", GET_SIZE(HDPR(heap_listp)), heap_listp);
@@ -178,6 +204,14 @@ int mm_init(void)
 static inline size_t page_size()
 {
     return mem_pagesize();
+}
+
+/*
+ * 总是插在空闲链表的头部
+ */
+static void insert_free_block(void *bp)
+{
+    //PUT(NEXT_FREEPTR(bp), )
 }
 
 /*
