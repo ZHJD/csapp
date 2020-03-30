@@ -9,6 +9,7 @@
  * NOTE TO STUDENTS: Replace this header comment with your own header
  * comment that gives a high level description of your solution.
  */
+#define  NDEBUG
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -396,6 +397,7 @@ void mm_free(void *ptr)
 }
 
 
+
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
@@ -416,8 +418,18 @@ void *mm_realloc(void *ptr, size_t size)
         {
             size_t old_size = GET_SIZE(HDPR(ptr));
             size_t asize = ALIGN(size + DWORD);
+            void *next_bp = NEXT_BP(ptr);
             if(asize <= old_size)
             {
+                place(ptr, asize);
+                return ptr;
+            }
+            else if(!IS_ALLOC(next_bp) && asize <= old_size + GET_SIZE(HDPR(next_bp)))
+            {
+                size_t total_size = old_size + GET_SIZE(HDPR(next_bp));
+                /* 合并当前块和下一个块 */
+                PUT(HDPR(ptr), PACK(total_size, 0x0));
+                PUT(FTPR(next_bp), PACK(total_size, 0x0));
                 place(ptr, asize);
                 return ptr;
             }
@@ -431,6 +443,7 @@ void *mm_realloc(void *ptr, size_t size)
         }
     }
 }
+
 
 
 
