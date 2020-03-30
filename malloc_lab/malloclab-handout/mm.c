@@ -145,8 +145,8 @@ static void *merge_free_blocks(void *bp)
     void *prev_bp = PREV_BP(bp);
     void *next_bp = NEXT_BP(bp);
 
-    assert(HDPR(prev_bp) == FTPR(prev_bp));
-    assert(HDPR(bp) == FTPR(bp));
+    assert(GET(HDPR(prev_bp)) == GET(FTPR(prev_bp)));
+    assert(GET(HDPR(bp)) == GET(FTPR(bp)));
 
     /* 返回值 */
     void *ret_bp;
