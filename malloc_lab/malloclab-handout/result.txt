@@ -110,3 +110,48 @@ trace  valid  util     ops      secs  Kops
 Total          85%  112372  0.499168   225
 
 Perf index = 51 (util) + 15 (thru) = 66/100
+Team Name:personal project
+Member 1 :zhang:bovik@cs.cmu.edu
+Using default tracefiles in ./traces/
+Measuring performance with gettimeofday().
+
+Testing mm malloc
+Reading tracefile: amptjp-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: cccp-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: cp-decl-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: expr-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: coalescing-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: random-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: random2-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: binary-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: binary2-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: realloc-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+Reading tracefile: realloc2-bal.rep
+Checking mm_malloc for correctness, efficiency, and performance.
+
+Results for mm malloc:
+trace  valid  util     ops      secs  Kops
+ 0       yes   89%    5694  0.000196 29036
+ 1       yes   92%    5848  0.000131 44505
+ 2       yes   94%    6648  0.000566 11744
+ 3       yes   96%    5380  0.000321 16781
+ 4       yes   66%   14400  0.000128112237
+ 5       yes   88%    4800  0.000444 10816
+ 6       yes   85%    4800  0.000464 10356
+ 7       yes   55%   12000  0.004672  2568
+ 8       yes   51%   24000  0.002713  8846
+ 9       yes   33%   14401  0.040373   357
+10       yes   30%   14401  0.000594 24240
+Total          71%  112372  0.050602  2221
+
+Perf index = 43 (util) + 40 (thru) = 83/100
