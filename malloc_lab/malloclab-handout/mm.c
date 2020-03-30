@@ -436,7 +436,8 @@ void *mm_realloc(void *ptr, size_t size)
             else
             {
                 void *new_ptr = mm_malloc(asize);
-                memcpy(new_ptr, ptr, old_size);
+                /* 因为块大小包含了首部和尾部 */
+                memcpy(new_ptr, ptr, old_size - DWORD);
                 mm_free(ptr);
                 return new_ptr;
             }
