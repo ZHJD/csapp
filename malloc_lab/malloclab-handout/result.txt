@@ -1,14 +1,22 @@
+naive realloc and many assert result
 Team Name:ateam
 Member 1 :Harry Bovik:bovik@cs.cmu.edu
+Using default tracefiles in ./traces/
 Measuring performance with gettimeofday().
-
-Testing mm malloc
-Reading tracefile: short1-bal.rep
-Checking mm_malloc for correctness, efficiency, and performance.
 
 Results for mm malloc:
 trace  valid  util     ops      secs  Kops
- 0       yes   66%      12  0.000000 24000
-Total          66%      12  0.000000 24000
+ 0       yes   99%    5694  0.019395   294
+ 1       yes   99%    5848  0.017802   329
+ 2       yes   99%    6648  0.030247   220
+ 3       yes  100%    5380  0.022590   238
+ 4       yes   66%   14400  0.000287 50139
+ 5       yes   92%    4800  0.020045   239
+ 6       yes   92%    4800  0.017677   272
+ 7       yes   55%   12000  0.475519    25
+ 8       yes   51%   24000  0.916947    26
+ 9       yes   27%   14401  0.210045    69
+10       yes   34%   14401  0.006456  2231
+Total          74%  112372  1.737011    65
 
-Perf index = 40 (util) + 40 (thru) = 80/100
+Perf index = 44 (util) + 4 (thru) = 49/100
