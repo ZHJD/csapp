@@ -1,4 +1,5 @@
-naive realloc and many assert result
+--------- naive realloc and many assert result ------------------
+
 Team Name:ateam
 Member 1 :Harry Bovik:bovik@cs.cmu.edu
 Using default tracefiles in ./traces/
@@ -20,3 +21,26 @@ trace  valid  util     ops      secs  Kops
 Total          74%  112372  1.737011    65
 
 Perf index = 44 (util) + 4 (thru) = 49/100
+
+---------------if size < old_size, then do not copy in realloc-------------
+Team Name:ateam
+Member 1 :Harry Bovik:bovik@cs.cmu.edu
+Using default tracefiles in ./traces/
+Measuring performance with gettimeofday().
+
+Results for mm malloc:
+trace  valid  util     ops      secs  Kops
+ 0       yes   99%    5694  0.019831   287
+ 1       yes   99%    5848  0.017528   334
+ 2       yes   99%    6648  0.030916   215
+ 3       yes  100%    5380  0.022768   236
+ 4       yes   66%   14400  0.000309 46632
+ 5       yes   92%    4800  0.020004   240
+ 6       yes   92%    4800  0.018523   259
+ 7       yes   55%   12000  0.488270    25
+ 8       yes   51%   24000  0.801544    30
+ 9       yes   27%   14401  0.181999    79
+10       yes   30%   14401  0.002272  6338
+Total          74%  112372  1.603964    70
+
+Perf index = 44 (util) + 5 (thru) = 49/100
