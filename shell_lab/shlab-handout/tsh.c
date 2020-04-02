@@ -309,6 +309,7 @@ int builtin_cmd(char **argv)
     else if(!strcmp(argv[0], "bg") || !strcmp(argv[0], "fg"))
     {
         do_bgfg(argv);
+        return 1;
     }
     else if(!strcmp(argv[0], "&"))
     {
@@ -331,6 +332,7 @@ void do_bgfg(char **argv)
     {
         job_p = getjobpid(jobs, atoi(argv[1]));
     }
+    printf("[%d] (%d) %s",job_p->jid, job_p->pid, job_p->cmdline);
     if(!strcmp(argv[0], "bg"))
     {
         job_p->state = BG;
@@ -349,8 +351,18 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
-    while(fgpid(jobs) == pid)
+    sigset_t mask_all;
+    sigset_t prev_all;
+    sigfillset(&mask_all);
+    while(1)
     {
+        sigprocmask(SIG_BLOCK, &mask_all, &prev_all); // 阻塞SIGCHILD
+        if(fgpid(jobs) != pid)
+        {
+            sigprocmask(SIG_SETMASK, &prev_all, NULL); // 阻塞SIGCHILD
+            break;
+        }
+        sigprocmask(SIG_SETMASK, &prev_all, NULL); // 阻塞SIGCHILD
         sleep(1);
     }
 }
@@ -374,13 +386,21 @@ void sigchld_handler(int sig)
     pid_t pid;
 
     sigfillset(&mask_all);
-    if((pid = waitpid(-1, NULL, WUNTRACED | WNOHANG)) <= 0)
+    if((pid = waitpid(-1, NULL, WNOHANG)) < 0)
     {
         unix_error("waitpid error!");
     }
-    sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
-    deletejob(jobs, pid);
-    sigprocmask(SIG_SETMASK, &prev_all, NULL);                       
+    else if(pid == 0)
+    {
+	return;
+    }
+    else
+    {
+	// printf("pid = %d\n", pid);
+    	sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+    	deletejob(jobs, pid);
+    	sigprocmask(SIG_SETMASK, &prev_all, NULL);  
+    }              
     errno = olderrno;
 }
 
@@ -391,12 +411,18 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
+    int olderrno = errno;
     pid_t pid = fgpid(jobs);
     if(pid > 0)
     {
-        kill(-pid, SIGINT);
+        if(kill(-pid, SIGINT) == -1)
+        {
+            unix_error("kill failed!");
+        }
+
         printf("Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);
     }
+    errno = olderrno;
 }
 
 /*
@@ -406,14 +432,23 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+    int olderrno = errno;
     pid_t pid = fgpid(jobs);
     struct job_t *job_p = getjobpid(jobs, pid);
+    if(job_p == NULL)
+    {
+        return;
+    }
     job_p->state = ST;
     if(pid > 0)
     {
-        kill(-pid, SIGTSTP);
+        if(kill(-pid, SIGTSTP) == -1)
+        {
+            unix_error("kill failed");
+        }
         printf("Job [%d] (%d) stopped by signal 20\n", job_p->jid, pid);
     }
+    errno = olderrno;
 }
 
 /*********************
