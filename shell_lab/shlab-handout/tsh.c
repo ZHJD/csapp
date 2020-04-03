@@ -440,6 +440,14 @@ void sigchld_handler(int sig)
             deletejob(jobs, pid);
             sigprocmask(SIG_SETMASK, &prev_all, NULL);  
         }
+    }
+   
+    if(errno != ECHILD)
+    {
+	// if add this, the result is "waitpid error: Interrupted system call"
+        // and in fact, this if statement should not be entered. I don't know why?
+	//unix_error("waitpid error");
+        
     }            
     errno = olderrno;
 }
