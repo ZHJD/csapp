@@ -85,6 +85,7 @@ void app_error(char *msg);
 typedef void handler_t(int);
 handler_t *Signal(int signum, handler_t *handler);
 static pid_t Fork(void);
+static int argv_error(char **argv);
 
 /*
  * Fork - A wrapper function for fork
@@ -291,6 +292,24 @@ int parseline(const char *cmdline, char **argv)
     return bg;
 }
 
+/*
+ * argv_error - handle simple argv error
+ */
+static int argv_error(char **argv)
+{
+     if(argv[1] == NULL)
+     {
+        printf("%s command requires PID or %%jobid argument\n", argv[0]);
+        return 0;
+     }
+     if((argv[1][0] < '0' && argv[1][0] > '9') && argv[1][0] != '%')
+     {
+        printf("%s: argument must be a PID or %%jobid\n", argv[0]);
+        return 0;
+     }
+     return 1;
+}
+
 /* 
  * builtin_cmd - If the user has typed a built-in command then execute
  *    it immediately.  
@@ -306,9 +325,12 @@ int builtin_cmd(char **argv)
         listjobs(jobs);
         return 1;
     }
-    else if(!strcmp(argv[0], "bg") || !strcmp(argv[0], "fg"))
+    else if(!strcmp(argv[0], "fg") || !strcmp(argv[0], "bg"))
     {
-        do_bgfg(argv);
+        if(argv_error(argv))
+        {
+            do_bgfg(argv);
+        }
         return 1;
     }
     else if(!strcmp(argv[0], "&"))
@@ -327,10 +349,20 @@ void do_bgfg(char **argv)
     if(argv[1][0] == '%')
     {
         job_p = getjobjid(jobs, atoi(argv[1] + 1));
+        if(job_p == NULL)
+        {
+            printf("%s: No such job\n", argv[1]);
+            return;
+        }
     }
     else
     {
         job_p = getjobpid(jobs, atoi(argv[1]));
+        if(job_p == NULL)
+        {
+            printf("(%s): No such process\n", argv[1]);
+            return;
+        }
     }
     printf("[%d] (%d) %s",job_p->jid, job_p->pid, job_p->cmdline);
     if(!strcmp(argv[0], "bg"))
@@ -392,14 +424,14 @@ void sigchld_handler(int sig)
     }
     else if(pid == 0)
     {
-	return;
+    return;
     }
     else
     {
-	// printf("pid = %d\n", pid);
-    	sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
-    	deletejob(jobs, pid);
-    	sigprocmask(SIG_SETMASK, &prev_all, NULL);  
+    // printf("pid = %d\n", pid);
+        sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+        deletejob(jobs, pid);
+        sigprocmask(SIG_SETMASK, &prev_all, NULL);  
     }              
     errno = olderrno;
 }
