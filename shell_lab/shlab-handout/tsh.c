@@ -418,21 +418,29 @@ void sigchld_handler(int sig)
     pid_t pid;
 
     sigfillset(&mask_all);
-    if((pid = waitpid(-1, NULL, WNOHANG)) < 0)
+    int status;
+    while((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0)
     {
-        unix_error("waitpid error!");
-    }
-    else if(pid == 0)
-    {
-    return;
-    }
-    else
-    {
-    // printf("pid = %d\n", pid);
-        sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
-        deletejob(jobs, pid);
-        sigprocmask(SIG_SETMASK, &prev_all, NULL);  
-    }              
+        if(WIFSIGNALED(status))
+        {
+            printf("Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);
+                    // printf("pid = %d\n", pid);
+            sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+            deletejob(jobs, pid);
+            sigprocmask(SIG_SETMASK, &prev_all, NULL);  
+        }
+        else if(WIFSTOPPED(status))
+        {
+            printf("Job [%d] (%d) stopped by signal 20\n", pid2jid(pid), pid);
+            getjobpid(jobs, pid)->state = ST;
+        }
+        else if(WIFEXITED(status))
+        {
+            sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+            deletejob(jobs, pid);
+            sigprocmask(SIG_SETMASK, &prev_all, NULL);  
+        }
+    }            
     errno = olderrno;
 }
 
@@ -452,7 +460,7 @@ void sigint_handler(int sig)
             unix_error("kill failed!");
         }
 
-        printf("Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);
+        //printf("Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);
     }
     errno = olderrno;
 }
@@ -466,19 +474,13 @@ void sigtstp_handler(int sig)
 {
     int olderrno = errno;
     pid_t pid = fgpid(jobs);
-    struct job_t *job_p = getjobpid(jobs, pid);
-    if(job_p == NULL)
-    {
-        return;
-    }
-    job_p->state = ST;
     if(pid > 0)
     {
         if(kill(-pid, SIGTSTP) == -1)
         {
             unix_error("kill failed");
         }
-        printf("Job [%d] (%d) stopped by signal 20\n", job_p->jid, pid);
+        //printf("Job [%d] (%d) stopped by signal 20\n", job_p->jid, pid);
     }
     errno = olderrno;
 }
