@@ -423,15 +423,26 @@ void sigchld_handler(int sig)
     {
         if(WIFSIGNALED(status))
         {
-            printf("Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);
-                    // printf("pid = %d\n", pid);
-            sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
-            deletejob(jobs, pid);
-            sigprocmask(SIG_SETMASK, &prev_all, NULL);  
+            if(WTERMSIG(status) == SIGINT)
+            {
+                printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, SIGINT);
+                // printf("pid = %d\n", pid);
+                sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+                deletejob(jobs, pid);
+                sigprocmask(SIG_SETMASK, &prev_all, NULL);  
+            }
+            else
+            {
+                sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+                deletejob(jobs, pid);
+                sigprocmask(SIG_SETMASK, &prev_all, NULL);
+                printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, WTERMSIG(status));
+            }
+
         }
         else if(WIFSTOPPED(status))
         {
-            printf("Job [%d] (%d) stopped by signal 20\n", pid2jid(pid), pid);
+            printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(pid), pid, WSTOPSIG(status));
             getjobpid(jobs, pid)->state = ST;
         }
         else if(WIFEXITED(status))
@@ -440,15 +451,7 @@ void sigchld_handler(int sig)
             deletejob(jobs, pid);
             sigprocmask(SIG_SETMASK, &prev_all, NULL);  
         }
-    }
-   
-    //if(errno != ECHILD)
-   // {
-	// if add this, the result is "waitpid error: Interrupted system call"
-        // and in fact, this if statement should not be entered. I don't know why?
-	//unix_error("waitpid error");
-        
-    //}            
+    }            
     errno = olderrno;
 }
 
